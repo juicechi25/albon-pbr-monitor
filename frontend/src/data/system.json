@@ -1,0 +1,50 @@
+[
+  {
+    "id": "PBR-001",
+    "location": "Wiley Park",
+    "latitude": -33.9247,
+    "longitude": 151.0685,
+    "temperature": 24.5,
+    "ph": 7.1,
+    "oxygen": 82,
+    "turbidity": 10,
+    "latency": 45,
+    "favorite": true
+  },
+  {
+    "id": "PBR-002",
+    "location": "Parramatta",
+    "latitude": -33.815,
+    "longitude": 151.0011,
+    "temperature": 29.2,
+    "ph": 8.6,
+    "oxygen": 61,
+    "turbidity": 24,
+    "latency": 350,
+    "favorite": false
+  },
+  {
+    "id": "PBR-003",
+    "location": "Auburn",
+    "latitude": -33.849,
+    "longitude": 151.032,
+    "temperature": 18.4,
+    "ph": 5.6,
+    "oxygen": 42,
+    "turbidity": 38,
+    "latency": 1200,
+    "favorite": false
+  },
+  {
+    "id": "PBR-004",
+    "location": "Bankstown",
+    "latitude": -33.917,
+    "longitude": 151.034,
+    "temperature": 25.7,
+    "ph": 7.3,
+    "oxygen": 79,
+    "turbidity": 13,
+    "latency": 65,
+    "favorite": false
+  }
+]

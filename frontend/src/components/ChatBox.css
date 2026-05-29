@@ -1,0 +1,134 @@
+.chat-toggle-btn {
+  position: relative;
+  background: #0f766e;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 11px 16px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #dc2626;
+  color: white;
+  border-radius: 999px;
+  padding: 3px 7px;
+  font-size: 12px;
+}
+
+.chat-panel {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 380px;
+  height: 520px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
+  padding: 18px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chat-header h2 {
+  margin: 0;
+}
+
+.chat-header p {
+  margin: 4px 0 0 0;
+  color: #6b7280;
+}
+
+.chat-header button {
+  background: #374151;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 12px;
+  margin: 14px 0;
+}
+
+.empty-chat {
+  color: #6b7280;
+}
+
+.chat-message {
+  padding: 10px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+
+.operator-msg {
+  background: #ecfdf5;
+  border-left: 4px solid #059669;
+}
+
+.viewer-msg {
+  background: #eef2ff;
+  border-left: 4px solid #4f46e5;
+}
+
+.chat-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+.chat-meta strong {
+  color: #111827;
+}
+
+.chat-message p {
+  margin: 0;
+}
+
+.chat-form {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-form input {
+  flex: 1;
+  padding: 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+}
+
+.chat-form button {
+  padding: 11px 16px;
+  background: #0f766e;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .chat-panel {
+    width: calc(100% - 32px);
+    right: 16px;
+    bottom: 16px;
+  }
+}

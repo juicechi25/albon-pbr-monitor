@@ -1,0 +1,26 @@
+[
+  {
+    "username": "viewer1",
+    "password": "viewer001",
+    "role": "viewer",
+    "siteId": "PBR-001"
+  },
+  {
+    "username": "viewer2",
+    "password": "viewer002",
+    "role": "viewer",
+    "siteId": "PBR-002"
+  },
+  {
+    "username": "viewer3",
+    "password": "viewer003",
+    "role": "viewer",
+    "siteId": "PBR-003"
+  },
+  {
+    "username": "viewer4",
+    "password": "viewer004",
+    "role": "viewer",
+    "siteId": "PBR-004"
+  }
+]

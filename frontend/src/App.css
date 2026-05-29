@@ -1,97 +1,8 @@
-:root {
-  --background: #f6f8fb;
-  --foreground: #111827;
-  --card: #ffffff;
-  --primary: #064e3b;
-  --primary-foreground: #ffffff;
-  --muted: #6b7280;
-  --border: rgba(0, 0, 0, 0.12);
-  --destructive: #dc2626;
-  --warning: #f59e0b;
-  --success: #059669;
-  --radius: 14px;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
-  background: var(--background);
-  color: var(--foreground);
-}
-
 .page {
   min-height: 100vh;
   padding: 28px;
-}
-
-.login-page {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.login-card,
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 24px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-}
-
-.login-card {
-  width: 380px;
-}
-
-.login-card h1 {
-  margin-bottom: 8px;
-}
-
-.login-card p {
-  color: var(--muted);
-}
-
-input {
-  width: 100%;
-  padding: 12px;
-  margin-top: 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  font-size: 15px;
-}
-
-button {
-  border: none;
-  border-radius: 10px;
-  background: var(--primary);
-  color: var(--primary-foreground);
-  padding: 11px 16px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-button:disabled {
-  background: #9ca3af;
-  cursor: not-allowed;
-}
-
-.login-card button {
-  width: 100%;
-  margin-top: 18px;
-}
-
-.secondary-btn {
-  background: #374151;
-}
-
-.hint {
-  margin-top: 18px;
-  font-size: 14px;
-  color: var(--muted);
+  background: #f6f8fb;
+  color: #111827;
 }
 
 .header {
@@ -99,46 +10,60 @@ button:disabled {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
- 
-
 }
 
 .header h1 {
-  margin-bottom: 4px; 
+  margin-bottom: 4px;
   font-size: 40px;
-  
-
 }
 
 .header p {
   margin: 0;
-  color: var(--muted);
+  color: #6b7280;
+}
+
+.secondary-btn {
+  background: #374151;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 11px 16px;
+  cursor: pointer;
+  font-weight: 600;
 }
 
 .status-banner {
   padding: 16px;
-  border-radius: var(--radius);
+  border-radius: 14px;
   margin-bottom: 24px;
   color: white;
   font-weight: 700;
 }
 
 .status-banner.online {
-  background: var(--success);
+  background: #059669;
 }
 
 .status-banner.warning {
-  background: var(--warning);
+  background: #f59e0b;
 }
 
 .status-banner.stale {
-  background: var(--destructive);
+  background: #dc2626;
 }
 
 .dashboard {
   display: grid;
   grid-template-columns: 1.5fr 1fr;
   gap: 22px;
+}
+
+.card {
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
 .card h2 {
@@ -159,7 +84,7 @@ button:disabled {
 
 .metric span {
   display: block;
-  color: var(--muted);
+  color: #6b7280;
   margin-bottom: 8px;
 }
 
@@ -176,7 +101,7 @@ button:disabled {
 
 .latency-box strong {
   font-size: 34px;
-  color: var(--success);
+  color: #059669;
 }
 
 .warning-text {
@@ -196,11 +121,51 @@ button:disabled {
   border-radius: 12px;
 }
 
+button {
+  border: none;
+  border-radius: 10px;
+  background: #064e3b;
+  color: white;
+  padding: 11px 16px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.emergency-btn {
+  width: 100%;
+  background: #dc2626;
+  margin-bottom: 12px;
+}
+
 .state-box {
   margin-top: 18px;
   padding: 14px;
   background: #eef2ff;
   border-radius: 12px;
+}
+
+.log-container {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.log-entry {
+  padding: 10px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.log-entry span {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.log-entry p {
+  margin: 4px 0 0 0;
 }
 
 @media (max-width: 800px) {
@@ -217,4 +182,38 @@ button:disabled {
     align-items: flex-start;
     gap: 12px;
   }
+}
+
+.notification-sidebar {
+  position: fixed;
+  top: 90px;
+  right: 24px;
+  width: 350px;
+  max-height: 500px;
+  overflow-y: auto;
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  z-index: 999;
+  box-shadow: 0 12px 36px rgba(0,0,0,.18);
+}
+
+.notification-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.notification-item {
+  background: #fff7ed;
+  border-left: 4px solid #f59e0b;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.notification-item span {
+  font-size: 12px;
+  color: #6b7280;
 }
