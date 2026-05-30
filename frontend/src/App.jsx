@@ -268,6 +268,48 @@ export default function App() {
     }
   }
 
+  async function measureLatency() {
+  const start = performance.now();
+
+  try {
+    const response = await fetch("http://localhost:8000/ping");
+
+    if (!response.ok) {
+      setStatus("STALE");
+      return;
+    }
+
+    await response.json();
+
+    const end = performance.now();
+    const measuredLatency = Math.round(end - start);
+
+    setLatency(measuredLatency);
+
+    if (measuredLatency > 1000) {
+      setStatus("STALE");
+    } else if (measuredLatency > 200) {
+      setStatus("WARNING");
+    } else {
+      setStatus("ONLINE");
+    }
+  } catch (error) {
+    setStatus("STALE");
+  }
+}
+
+useEffect(() => {
+  if (!selectedSystem) return;
+
+  measureLatency();
+
+  const interval = setInterval(() => {
+    measureLatency();
+  }, 1000);
+
+  return () => clearInterval(interval);
+}, [selectedSystem]);
+
   async function togglePump() {
     const success = await sendActuatorCommand("pump", pumpOn ? "off" : "on");
 

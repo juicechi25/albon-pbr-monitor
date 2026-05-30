@@ -45,18 +45,37 @@ def get_systems():
     ]
 
 
-@app.get("/systems/{system_id}/sensor")
-def get_sensor(system_id: str):
-    data = generate_sensor_data(system_id)
-    save_sensor_data(data)
-    record_message(data["latency"])
-    return data
+from models import SensorData
+@app.post("/sensor")
+def post_sensor(data: SensorData):
+    sensor_dict = data.dict()
+    save_sensor_data(sensor_dict)
+    record_message(sensor_dict["latency"])
+
+    add_log(
+        "INFO",
+        data.system_id,
+        "sensor reading received from simulator",
+        "simulator",
+        sensor_dict,
+    )
+
+    return {
+        "status": "received",
+        "data": sensor_dict,
+    }
 
 
 @app.get("/systems/{system_id}/state")
 def get_state(system_id: str):
     return get_or_create_state(system_id)
 
+@app.get("/ping")
+def ping():
+    return {
+        "status": "ok",
+        "server_time": datetime.now().isoformat(timespec="milliseconds")
+    }
 
 @app.post("/actuator")
 def control_actuator(command: ActuatorCommand):
