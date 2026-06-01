@@ -1,4 +1,4 @@
-function SystemErrors({ errors }) {
+function SystemErrors({ errors = [] }) {
   return (
     <section className="card">
       <h2>System Errors</h2>

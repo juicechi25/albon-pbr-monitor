@@ -132,3 +132,10 @@
     bottom: 16px;
   }
 }
+
+@media (min-height: 900px) {
+  .chat-panel {
+    height: 700px;
+    width: 420px;
+  }
+}

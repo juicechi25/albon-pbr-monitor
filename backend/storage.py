@@ -10,6 +10,7 @@ systems = {
 sensor_history = {}
 chat_messages = {}
 logs = []
+latest_sensor_data = {}
 
 
 def add_log(level, system_id, event, username="system", details=None):
@@ -26,13 +27,14 @@ def add_log(level, system_id, event, username="system", details=None):
 def save_sensor_data(data):
     system_id = data["system_id"]
 
+    latest_sensor_data[system_id] = data
+
     if system_id not in sensor_history:
         sensor_history[system_id] = []
 
     sensor_history[system_id].append(data)
 
     sensor_history[system_id] = sensor_history[system_id][-100:]
-
 
 def get_or_create_state(system_id):
     if system_id not in systems:

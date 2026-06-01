@@ -1,6 +1,8 @@
+import json
 import os
 import random
 import time
+from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
@@ -10,25 +12,90 @@ load_dotenv()
 BASE_URL = os.getenv("ALBON_API_BASE_URL", "http://127.0.0.1:8000")
 USERNAME = os.getenv("ALBON_SIMULATOR_USERNAME", "simulator_operator")
 
-VALID_SYSTEMS = [
-    os.getenv("PBR_001", "PBR-001"),
-    os.getenv("PBR_002", "PBR-002"),
-    os.getenv("PBR_003", "PBR-003"),
-    os.getenv("PBR_004", "PBR-004"),
-]
+SYSTEM_JSON_PATH = Path(__file__).resolve().parent.parent / "frontend" / "src" / "data" / "system.json"
+
+
+def load_systems():
+    with open(SYSTEM_JSON_PATH, "r") as file:
+        return json.load(file)
+
+
+SYSTEMS = load_systems()
+VALID_SYSTEMS = [system["id"] for system in SYSTEMS]
+
+
+def get_base_system(system_id: str):
+    for system in SYSTEMS:
+        if system["id"] == system_id:
+            return system
+
+    raise ValueError(f"System {system_id} not found in system.json")
+
+
+def fluctuate(value, amount, min_value=None, max_value=None, decimals=1):
+    new_value = value + random.uniform(-amount, amount)
+
+    if min_value is not None:
+        new_value = max(min_value, new_value)
+
+    if max_value is not None:
+        new_value = min(max_value, new_value)
+
+    return round(new_value, decimals)
 
 
 def generate_sensor_data(system_id: str):
+    base = get_base_system(system_id)
+
+    base["temperature"] = fluctuate(
+        base["temperature"],
+        amount=0.5,
+        min_value=18,
+        max_value=32,
+        decimals=1,
+    )
+
+    base["ph"] = fluctuate(
+        base["ph"],
+        amount=0.05,
+        min_value=5.5,
+        max_value=8.5,
+        decimals=2,
+    )
+
+    base["oxygen"] = fluctuate(
+        base["oxygen"],
+        amount=1.0,
+        min_value=40,
+        max_value=95,
+        decimals=1,
+    )
+
+    base["turbidity"] = fluctuate(
+        base["turbidity"],
+        amount=0.5,
+        min_value=5,
+        max_value=50,
+        decimals=1,
+    )
+
+    print(
+        f"Generated data for {system_id}: "
+        f"T={base['temperature']}, "
+        f"pH={base['ph']}, "
+        f"O2={base['oxygen']}, "
+        f"Turbidity={base['turbidity']}"
+    )
+
     return {
         "system_id": system_id,
-        "temperature": round(random.uniform(22, 29), 1),
-        "ph": round(random.uniform(6.7, 8.4), 2),
-        "oxygen": random.randint(55, 90),
-        "turbidity": random.randint(8, 35),
+        "temperature": base["temperature"],
+        "ph": base["ph"],
+        "oxygen": int(base["oxygen"]),
+        "turbidity": int(base["turbidity"]),
         "latency": 0,
         "timestamp": time.time(),
     }
-
 
 def post_request(endpoint: str, payload: dict):
     try:
@@ -64,6 +131,8 @@ def publish_sensor_data(system_id: str):
     data = generate_sensor_data(system_id)
 
     print("\nPublishing sensor data...")
+    print(data)
+
     post_request("/sensor", data)
 
 
@@ -91,24 +160,26 @@ def emergency_stop(system_id: str):
     post_request("/emergency-stop", payload)
 
 
-def run_auto_sensor_loop(system_id: str):
-    print("\nPublishing sensor data every 1 second.")
+def run_all_sites_sensor_loop():
+    print("\nPublishing sensor data for ALL sites every 1 second.")
     print("Press Ctrl+C to stop.")
 
     try:
         while True:
-            publish_sensor_data(system_id)
+            for system_id in VALID_SYSTEMS:
+                publish_sensor_data(system_id)
+
             time.sleep(1)
 
     except KeyboardInterrupt:
-        print("\nStopped sensor simulator.")
+        print("\nStopped all-site sensor simulator.")
 
 
 def select_system():
     print("\nAvailable Sites")
 
-    for index, site in enumerate(VALID_SYSTEMS, start=1):
-        print(f"{index}. {site}")
+    for index, system in enumerate(SYSTEMS, start=1):
+        print(f"{index}. {system['id']} - {system['location']}")
 
     while True:
         choice = input("Select site: ").strip()
@@ -116,10 +187,10 @@ def select_system():
         if choice.isdigit():
             index = int(choice)
 
-            if 1 <= index <= len(VALID_SYSTEMS):
-                return VALID_SYSTEMS[index - 1]
+            if 1 <= index <= len(SYSTEMS):
+                return SYSTEMS[index - 1]["id"]
 
-        print("Invalid site. Please choose 1-4.")
+        print(f"Invalid site. Please choose 1-{len(SYSTEMS)}.")
 
 
 def main():
@@ -163,4 +234,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    if "--all" in sys.argv:
+        run_all_sites_sensor_loop()
+    else:
+        main()

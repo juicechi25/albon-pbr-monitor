@@ -1,28 +1,36 @@
+function formatLabel(key) {
+  const labels = {
+    temperature: "Temperature",
+    ph: "pH",
+    oxygen: "Dissolved Oxygen",
+    turbidity: "Turbidity",
+  };
+  return labels[key] || key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+function getUnit(key) {
+  const units = {
+    temperature: "°C",
+    oxygen: "%",
+    turbidity: "NTU",
+  };
+  return units[key] || "";
+}
+
 function Sensor({ sensorData }) {
   return (
     <section className="card">
       <h2>Live Sensor Telemetry</h2>
 
       <div className="grid">
-        <div className="metric">
-          <span>Temperature</span>
-          <strong>{sensorData.temperature} °C</strong>
-        </div>
-
-        <div className="metric">
-          <span>pH</span>
-          <strong>{sensorData.ph}</strong>
-        </div>
-
-        <div className="metric">
-          <span>Dissolved Oxygen</span>
-          <strong>{sensorData.oxygen}%</strong>
-        </div>
-
-        <div className="metric">
-          <span>Turbidity</span>
-          <strong>{sensorData.turbidity} NTU</strong>
-        </div>
+        {Object.entries(sensorData).map(([key, value]) => (
+          <div key={key} className="metric">
+            <span>{formatLabel(key)}</span>
+            <strong>
+              {value} {getUnit(key)}
+            </strong>
+          </div>
+        ))}
       </div>
     </section>
   );

@@ -14,8 +14,13 @@ export default function App() {
   const [systemErrors, setSystemErrors] = useState([]);
 
   const [latency, setLatency] = useState(45);
-  const [pumpOn, setPumpOn] = useState(false);
-  const [lightOn, setLightOn] = useState(true);
+  const [actuatorStates, setActuatorStates] = useState({
+    pump: false,
+    lights: true,
+  });
+
+  const [emergencyStopActive, setEmergencyStopActive] = useState(false);
+  const [stateSynced, setStateSynced] = useState(false);
   const [status, setStatus] = useState("ONLINE");
   const [weather, setWeather] = useState(null);
 
@@ -77,6 +82,7 @@ export default function App() {
       actuators: {
         pump: false,
         lights: true,
+        emergency_stop: false,
       },
 
       favorite: system.favorite,
@@ -98,17 +104,27 @@ export default function App() {
     setNotificationOpen(false);
     setUnreadMessages([]);
     setStatus("ONLINE");
+    setStateSynced(false);
   }
 
   function handleSelectSystem(system) {
     setSelectedSystem(system);
-    setSensorData(system.sensors);
-    setLatency(system.connection.latency);
-    setStatus(system.connection.status);
-    setPumpOn(system.actuators.pump);
-    setLightOn(system.actuators.lights);
+    setSensorData(system.sensors || {});
+    setLatency(system.connection?.latency ?? 0);
+    setStatus(system.connection?.status ?? "ONLINE");
+
+    setActuatorStates(
+      system.actuators || {
+        pump: false,
+        lights: true,
+      }
+    );
+
+    setEmergencyStopActive(system.actuators?.emergency_stop || false);
+    setStateSynced(true);
     setWeather(null);
     setChatOpen(false);
+
     addLog(`${currentUser?.username || "user"} selected ${system.id}`);
   }
 
@@ -140,28 +156,23 @@ export default function App() {
     };
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+  const data = JSON.parse(event.data);
+  console.log("Dashboard received WS data:", data);
 
-      setSensorData({
-        temperature: data.temperature,
-        ph: data.ph,
-        oxygen: data.oxygen,
-        turbidity: data.turbidity,
-      });
+  const sensors = data.sensors || data;
 
-      setLatency(data.latency);
-
-      if (data.latency > 1000) {
-        setStatus("STALE");
-      } else if (data.latency > 200) {
-        setStatus("WARNING");
-      } else {
-        setStatus("ONLINE");
-      }
-    };
+  setSensorData({
+    temperature: sensors.temperature,
+    ph: sensors.ph,
+    oxygen: sensors.oxygen,
+    turbidity: sensors.turbidity,
+  });
+};
 
     ws.onerror = () => {
       setStatus("STALE");
+      setStateSynced(false);
+
       addSystemError(
         "WS_ERROR",
         `WebSocket connection failed for ${selectedSystem.id}`
@@ -170,6 +181,8 @@ export default function App() {
 
     ws.onclose = () => {
       setStatus("STALE");
+      setStateSynced(false);
+
       addSystemError(
         "WS_CLOSED",
         `Live telemetry disconnected for ${selectedSystem.id}`
@@ -179,6 +192,69 @@ export default function App() {
     return () => {
       ws.close();
     };
+  }, [selectedSystem]);
+
+  async function measureLatency() {
+    if (!selectedSystem) return;
+
+    const start = performance.now();
+
+    try {
+      const response = await fetch("http://localhost:8000/ping");
+
+      if (!response.ok) {
+        setStatus("STALE");
+        setStateSynced(false);
+        addSystemError(response.status, "Backend ping failed");
+        return;
+      }
+
+      await response.json();
+
+      const end = performance.now();
+      const measuredLatency = Math.round(end - start);
+
+      setLatency(measuredLatency);
+
+      fetch("http://localhost:8000/latency", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          system_id: selectedSystem.id,
+          latency_ms: measuredLatency,
+        }),
+      }).catch(() => {});
+
+      if (measuredLatency > 1000) {
+        setStatus("STALE");
+        setStateSynced(false);
+      } else if (measuredLatency > 200) {
+        setStatus("WARNING");
+        setStateSynced(true);
+      } else {
+        setStatus("ONLINE");
+        setStateSynced(true);
+      }
+    } catch (error) {
+      console.error(error);
+      setStatus("STALE");
+      setStateSynced(false);
+      addSystemError("PING_ERROR", "Unable to reach backend ping endpoint");
+    }
+  }
+
+  useEffect(() => {
+    if (!selectedSystem) return;
+
+    measureLatency();
+
+    const interval = setInterval(() => {
+      measureLatency();
+    }, 1000);
+
+    return () => clearInterval(interval);
   }, [selectedSystem]);
 
   useEffect(() => {
@@ -233,6 +309,8 @@ export default function App() {
   }
 
   async function sendActuatorCommand(actuator, action) {
+    if (!selectedSystem) return false;
+
     try {
       const response = await fetch("http://localhost:8000/actuator", {
         method: "POST",
@@ -259,76 +337,37 @@ export default function App() {
       return true;
     } catch (error) {
       console.error(error);
+
       addSystemError(
         "ACTUATOR_API_ERROR",
         "Backend unavailable while sending actuator command"
       );
+
       alert("Backend unavailable while sending actuator command");
       return false;
     }
   }
 
-  async function measureLatency() {
-  const start = performance.now();
-
-  try {
-    const response = await fetch("http://localhost:8000/ping");
-
-    if (!response.ok) {
-      setStatus("STALE");
-      return;
-    }
-
-    await response.json();
-
-    const end = performance.now();
-    const measuredLatency = Math.round(end - start);
-
-    setLatency(measuredLatency);
-
-    if (measuredLatency > 1000) {
-      setStatus("STALE");
-    } else if (measuredLatency > 200) {
-      setStatus("WARNING");
-    } else {
-      setStatus("ONLINE");
-    }
-  } catch (error) {
-    setStatus("STALE");
-  }
-}
-
-useEffect(() => {
-  if (!selectedSystem) return;
-
-  measureLatency();
-
-  const interval = setInterval(() => {
-    measureLatency();
-  }, 1000);
-
-  return () => clearInterval(interval);
-}, [selectedSystem]);
-
-  async function togglePump() {
-    const success = await sendActuatorCommand("pump", pumpOn ? "off" : "on");
+  async function toggleActuator(name, currentState) {
+    const success = await sendActuatorCommand(name, currentState ? "off" : "on");
 
     if (success) {
-      setPumpOn(!pumpOn);
-      addLog(`Pump ${!pumpOn ? "enabled" : "disabled"}`);
-    }
-  }
+      setActuatorStates((prev) => ({
+        ...prev,
+        [name]: !currentState,
+      }));
 
-  async function toggleLight() {
-    const success = await sendActuatorCommand("lights", lightOn ? "off" : "on");
-
-    if (success) {
-      setLightOn(!lightOn);
-      addLog(`Lights ${!lightOn ? "enabled" : "disabled"}`);
+      addLog(
+        `${name.charAt(0).toUpperCase() + name.slice(1)} ${
+          !currentState ? "enabled" : "disabled"
+        }`
+      );
     }
   }
 
   async function emergencyStop() {
+    if (!selectedSystem) return;
+
     try {
       const response = await fetch("http://localhost:8000/emergency-stop", {
         method: "POST",
@@ -350,18 +389,57 @@ useEffect(() => {
         return;
       }
 
-      setPumpOn(false);
-      setLightOn(false);
+      setActuatorStates(data.state);
+      setEmergencyStopActive(true);
       addLog("Emergency stop activated");
     } catch (error) {
       console.error(error);
+
       addSystemError(
         "EMERGENCY_STOP_API_ERROR",
         "Backend unavailable during emergency stop"
       );
+
       alert("Backend unavailable during emergency stop");
     }
   }
+
+  async function resetEmergencyStop() {
+  if (!selectedSystem) return;
+
+  try {
+    const response = await fetch("http://localhost:8000/reset-emergency-stop", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        system_id: selectedSystem.id,
+        role: currentUser.role,
+        username: currentUser.username,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      addSystemError(response.status, data.detail || "Emergency stop reset failed");
+      alert(data.detail || "Emergency stop reset failed");
+      return;
+    }
+
+    setActuatorStates(data.state);
+    setEmergencyStopActive(false);
+    addLog("Emergency stop reset");
+  } catch (error) {
+    console.error(error);
+    addSystemError(
+      "RESET_ESTOP_API_ERROR",
+      "Backend unavailable during emergency stop reset"
+    );
+    alert("Backend unavailable during emergency stop reset");
+  }
+}
 
   async function downloadReport() {
     if (!selectedSystem) return;
@@ -392,10 +470,12 @@ useEffect(() => {
       addLog(`Downloaded report for ${selectedSystem.id}`);
     } catch (error) {
       console.error(error);
+
       addSystemError(
         "REPORT_API_ERROR",
         "Backend unavailable or report endpoint failed"
       );
+
       alert("Backend unavailable or report endpoint failed");
     }
   }
@@ -406,33 +486,55 @@ useEffect(() => {
     return unreadMessages.filter((msg) => msg.systemId === selectedSystem.id);
   }
 
-  function loadUnreadMessages() {
+  async function loadUnreadMessages() {
     if (!currentUser) return;
 
     const unread = [];
 
     if (currentUser.role === "operator") {
-      systemsData.forEach((system) => {
-        const saved = localStorage.getItem(`chat-${system.id}`);
-        const messages = saved ? JSON.parse(saved) : [];
+      try {
+        for (const system of systemsData) {
+          const response = await fetch(`http://localhost:8000/chat/${system.id}`);
 
-        messages.forEach((msg) => {
-          if (msg.role === "viewer" && !msg.readByOperator) {
-            unread.push(msg);
+          if (response.ok) {
+            const messages = await response.json();
+
+            messages.forEach((msg) => {
+              if (msg.role === "viewer" && !msg.read_by_operator) {
+                unread.push({
+                  ...msg,
+                  systemId: system.id,
+                });
+              }
+            });
           }
-        });
-      });
+        }
+      } catch (error) {
+        console.error("Failed to load unread messages for operator:", error);
+      }
     }
 
     if (currentUser.role === "viewer" && selectedSystem) {
-      const saved = localStorage.getItem(`chat-${selectedSystem.id}`);
-      const messages = saved ? JSON.parse(saved) : [];
+      try {
+        const response = await fetch(
+          `http://localhost:8000/chat/${selectedSystem.id}`
+        );
 
-      messages.forEach((msg) => {
-        if (msg.role === "operator" && !msg.readByViewer) {
-          unread.push(msg);
+        if (response.ok) {
+          const messages = await response.json();
+
+          messages.forEach((msg) => {
+            if (msg.role === "operator" && !msg.read_by_viewer) {
+              unread.push({
+                ...msg,
+                systemId: selectedSystem.id,
+              });
+            }
+          });
         }
-      });
+      } catch (error) {
+        console.error("Failed to load unread messages for viewer:", error);
+      }
     }
 
     setUnreadMessages((prev) => {
@@ -486,8 +588,6 @@ useEffect(() => {
       latency={latency}
       sensorData={sensorData}
       weather={weather}
-      pumpOn={pumpOn}
-      lightOn={lightOn}
       logs={logs}
       systemErrors={systemErrors}
       chatOpen={chatOpen}
@@ -498,14 +598,19 @@ useEffect(() => {
         setWeather(null);
         setChatOpen(false);
         setNotificationOpen(false);
+        setStateSynced(false);
       }}
       onOpenChat={() => setChatOpen(true)}
       onCloseChat={() => setChatOpen(false)}
       onDownloadReport={downloadReport}
       onLogout={logout}
-      onTogglePump={togglePump}
-      onToggleLight={toggleLight}
+      onToggleActuator={toggleActuator}
       onEmergencyStop={emergencyStop}
+      onResetEmergencyStop={resetEmergencyStop}
+      emergencyStopActive={emergencyStopActive}
+      actuatorStates={actuatorStates}
+      stateSynced={stateSynced}
+      
     />
   );
 }

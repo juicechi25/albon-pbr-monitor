@@ -1,7 +1,10 @@
+import time
+
 metrics = {
     "message_count": 0,
     "error_count": 0,
     "latency_total": 0,
+    "start_time": time.time(),
 }
 
 
@@ -16,6 +19,7 @@ def record_error():
 
 def get_metrics():
     count = metrics["message_count"]
+    uptime = time.time() - metrics["start_time"]
 
     avg_latency = (
         metrics["latency_total"] / count
@@ -23,8 +27,12 @@ def get_metrics():
         else 0
     )
 
+    message_rate = count / uptime if uptime > 0 else 0
+
     return {
         "message_count": metrics["message_count"],
         "error_count": metrics["error_count"],
         "average_latency": round(avg_latency, 2),
+        "message_rate_per_sec": round(message_rate, 2),
+        "uptime_seconds": round(uptime, 1),
     }

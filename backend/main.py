@@ -2,24 +2,29 @@ import asyncio
 import csv
 import io
 from datetime import datetime
+import time;
+
 
 from fastapi import FastAPI, WebSocket, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
-from models import ActuatorCommand, ChatMessage, EmergencyStop
+from models import ActuatorCommand, ChatMessage, EmergencyStop, LatencyReport, SensorData
 from simulator import generate_sensor_data
 from storage import (
     systems,
     sensor_history,
     chat_messages,
     logs,
+    latest_sensor_data,
     add_log,
     save_sensor_data,
     get_or_create_state,
 )
 from metrics import record_message, record_error, get_metrics
 
+
+active_connections = {}
 
 app = FastAPI(title="ALBON PBR Backend")
 
@@ -45,10 +50,11 @@ def get_systems():
     ]
 
 
-from models import SensorData
+
+
 @app.post("/sensor")
 def post_sensor(data: SensorData):
-    sensor_dict = data.dict()
+    sensor_dict = data.model_dump()
     save_sensor_data(sensor_dict)
     record_message(sensor_dict["latency"])
 
@@ -64,7 +70,6 @@ def post_sensor(data: SensorData):
         "status": "received",
         "data": sensor_dict,
     }
-
 
 @app.get("/systems/{system_id}/state")
 def get_state(system_id: str):
@@ -150,10 +155,41 @@ def emergency_stop(data: EmergencyStop):
         "state": state,
     }
 
+@app.post("/reset-emergency-stop")
+def reset_emergency_stop(data: EmergencyStop):
+    if data.role != "operator":
+        record_error()
+        raise HTTPException(
+            status_code=403,
+            detail="Only operators can reset emergency stop",
+        )
+
+    state = get_or_create_state(data.system_id)
+    state["emergency_stop"] = False
+
+    add_log(
+        "INFO",
+        data.system_id,
+        "emergency stop reset",
+        data.username,
+    )
+
+    return {
+        "status": "emergency_stop_reset",
+        "system_id": data.system_id,
+        "state": state,
+    }
+
 
 @app.get("/metrics")
 def metrics_endpoint():
     return get_metrics()
+
+
+@app.post("/latency")
+def post_latency(report: LatencyReport):
+    record_message(report.latency_ms)
+    return {"status": "recorded"}
 
 
 @app.get("/logs")
@@ -179,6 +215,7 @@ def post_chat(message: ChatMessage):
         "text": message.text,
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "read_by_operator": message.role == "operator",
+        "read_by_viewer": message.role == "viewer",
     }
 
     chat_messages[message.system_id].append(new_message)
@@ -191,6 +228,17 @@ def post_chat(message: ChatMessage):
     )
 
     return new_message
+
+
+@app.post("/chat/{system_id}/read")
+def mark_chat_read(system_id: str, role: str):
+    if system_id in chat_messages:
+        for msg in chat_messages[system_id]:
+            if role == "operator":
+                msg["read_by_operator"] = True
+            elif role == "viewer":
+                msg["read_by_viewer"] = True
+    return {"status": "success"}
 
 
 @app.get("/report/{system_id}")
@@ -234,9 +282,53 @@ async def websocket_sensor_stream(websocket: WebSocket, system_id: str):
 
     try:
         while True:
-            data = generate_sensor_data(system_id)
-            save_sensor_data(data)
-            record_message(data["latency"])
+            latest = latest_sensor_data.get(system_id)
+
+            if latest and time.time() - latest.get("timestamp", 0) <= 2:
+                data = latest
+            else:
+                data = generate_sensor_data(system_id)
+                save_sensor_data(data)
+
+            await websocket.send_json(data)
+            await asyncio.sleep(1)
+
+    except Exception:
+        add_log("WARNING", system_id, "websocket disconnected")
+    await websocket.accept()
+
+    add_log("INFO", system_id, "websocket connected")
+
+    try:
+        while True:
+            latest = latest_sensor_data.get(system_id)
+
+            # If simulator has posted data recently, use it.
+            # If not, generate fresh fallback data so dashboard still moves.
+            if latest and time.time() - latest.get("timestamp", 0) <= 2:
+                data = latest
+            else:
+                data = generate_sensor_data(system_id)
+                save_sensor_data(data)
+
+            print("Sending WS data:", data)
+
+            await websocket.send_json(data)
+            await asyncio.sleep(1)
+
+    except Exception:
+        add_log("WARNING", system_id, "websocket disconnected")
+    await websocket.accept()
+
+    add_log("INFO", system_id, "websocket connected")
+
+    try:
+        while True:
+            if system_id in latest_sensor_data:
+                data = latest_sensor_data[system_id]
+            else:
+                data = generate_sensor_data(system_id)
+                save_sensor_data(data)
 
             await websocket.send_json(data)
             await asyncio.sleep(1)

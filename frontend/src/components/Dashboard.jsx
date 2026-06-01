@@ -16,9 +16,7 @@ function Dashboard({
   latency,
   sensorData,
   weather,
-  pumpOn,
-  lightOn,
-  logs,
+  logs = [],
   chatOpen,
   unreadCount,
   getWeatherImpact,
@@ -27,10 +25,13 @@ function Dashboard({
   onCloseChat,
   onDownloadReport,
   onLogout,
-  onTogglePump,
-  onToggleLight,
+  onToggleActuator,
   onEmergencyStop,
-  systemErrors,
+  onResetEmergencyStop,
+  emergencyStopActive,
+  actuatorStates,
+  stateSynced,
+  systemErrors = [],
 }) {
   return (
     <div className="page">
@@ -69,14 +70,17 @@ function Dashboard({
         <Control
           isOperator={isOperator}
           status={status}
-          pumpOn={pumpOn}
-          lightOn={lightOn}
-          onTogglePump={onTogglePump}
-          onToggleLight={onToggleLight}
+          actuatorStates={actuatorStates}
+          emergencyStop={emergencyStopActive}
+          stateSynced={stateSynced}
+          onToggle={onToggleActuator}
           onEmergencyStop={onEmergencyStop}
+          onResetEmergencyStop={onResetEmergencyStop}
         />
 
         {isOperator && <ActivityLog logs={logs} />}
+
+        {isOperator && <SystemErrors errors={systemErrors} />}
       </main>
 
       <ChatBox
@@ -85,7 +89,6 @@ function Dashboard({
         isOpen={chatOpen}
         onClose={onCloseChat}
       />
-      {isOperator && <SystemErrors errors={systemErrors} />}
     </div>
   );
 }

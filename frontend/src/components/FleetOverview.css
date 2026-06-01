@@ -1,7 +1,13 @@
 .fleet-page {
   min-height: 100vh;
   background: #f4f7fb;
-  padding: 32px;
+  padding: 40px 60px;
+}
+
+@media (min-width: 1440px) {
+  .fleet-page {
+    padding: 60px 100px;
+  }
 }
 
 .fleet-header {
@@ -65,9 +71,15 @@
 }
 
 .fleet-list {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+@media (min-width: 1700px) {
+  .fleet-list {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .fleet-card {

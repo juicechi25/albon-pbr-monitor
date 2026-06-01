@@ -2,43 +2,32 @@ import { useEffect, useRef, useState } from "react";
 import "./ChatBox.css";
 
 function ChatBox({ systemId, currentUser, isOpen, onClose }) {
-  const storageKey = `chat-${systemId}`;
   const messagesEndRef = useRef(null);
 
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
 
-  function loadMessages() {
-    const saved = localStorage.getItem(storageKey);
-    const parsed = saved ? JSON.parse(saved) : [];
-
-    setMessages(parsed);
+  async function loadMessages() {
+    try {
+      const response = await fetch(`http://localhost:8000/chat/${systemId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(data);
+      }
+    } catch (error) {
+      console.error("Failed to load chat messages:", error);
+    }
   }
 
-  function markCurrentChatAsRead() {
-    const saved = localStorage.getItem(storageKey);
-    const parsed = saved ? JSON.parse(saved) : [];
-
-    const updated = parsed.map((msg) => {
-      if (currentUser.role === "operator" && msg.role === "viewer") {
-        return {
-          ...msg,
-          readByOperator: true,
-        };
-      }
-
-      if (currentUser.role === "viewer" && msg.role === "operator") {
-        return {
-          ...msg,
-          readByViewer: true,
-        };
-      }
-
-      return msg;
-    });
-
-    localStorage.setItem(storageKey, JSON.stringify(updated));
-    setMessages(updated);
+  async function markAsRead() {
+    if (!isOpen) return;
+    try {
+      await fetch(`http://localhost:8000/chat/${systemId}/read?role=${currentUser.role}`, {
+        method: "POST"
+      });
+    } catch (error) {
+      console.error("Failed to mark messages as read:", error);
+    }
   }
 
   useEffect(() => {
@@ -46,16 +35,16 @@ function ChatBox({ systemId, currentUser, isOpen, onClose }) {
 
     const interval = setInterval(() => {
       loadMessages();
-    }, 1000);
+    }, 2000);
 
     return () => clearInterval(interval);
-  }, [storageKey]);
+  }, [systemId]);
 
   useEffect(() => {
     if (isOpen) {
-      markCurrentChatAsRead();
+      markAsRead();
     }
-  }, [isOpen, storageKey, currentUser.role]);
+  }, [isOpen, messages.length, systemId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
@@ -63,28 +52,36 @@ function ChatBox({ systemId, currentUser, isOpen, onClose }) {
     });
   }, [messages, isOpen]);
 
-  function sendMessage(e) {
+  async function sendMessage(e) {
     e.preventDefault();
 
     if (!text.trim()) return;
 
-    const newMessage = {
-      id: Date.now(),
-      systemId,
+    const payload = {
+      system_id: systemId,
       sender: currentUser.username,
       role: currentUser.role,
       text: text.trim(),
-      timestamp: new Date().toLocaleTimeString(),
-
-      readByOperator: currentUser.role === "operator",
-      readByViewer: currentUser.role === "viewer",
     };
 
-    const updatedMessages = [...messages, newMessage];
+    try {
+      const response = await fetch("http://localhost:8000/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-    localStorage.setItem(storageKey, JSON.stringify(updatedMessages));
-    setMessages(updatedMessages);
-    setText("");
+      if (response.ok) {
+        const newMessage = await response.json();
+        setMessages((prev) => [...prev, newMessage]);
+        setText("");
+      }
+    } catch (error) {
+      console.error("Failed to send message:", error);
+      alert("Backend unavailable while sending message");
+    }
   }
 
   if (!isOpen) return null;
@@ -116,7 +113,7 @@ function ChatBox({ systemId, currentUser, isOpen, onClose }) {
               <div className="chat-meta">
                 <strong>{msg.sender}</strong>
                 <span>{msg.role}</span>
-                <span>{msg.timestamp}</span>
+                <span>{msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ""}</span>
               </div>
 
               <p>{msg.text}</p>
